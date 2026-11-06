@@ -1,0 +1,15 @@
+# Środowisko wirtualne Pythona
+venv/
+__pycache__/
+*.pyc
+
+# Tajny plik z kluczami API (NAJWAŻNIEJSZE!)
+.env
+
+# Pliki z wynikami badań i logami lokalnymi (będą generowane na Twoim komputerze)
+wyniki_badania.csv
+logi_rozmow.csv
+
+# Systemowe pliki tymczasowe
+.DS_Store
+.vscode/
