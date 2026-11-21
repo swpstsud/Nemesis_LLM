@@ -15,18 +15,25 @@ from engine import (
     generate_episode_opening,
     NemesisVectorMemory,
     RelationshipEngine,
-    EPISODE_CONTEXTS,
+    PLAYER_EPISODE_BRIEFS,
 )
 
 st.set_page_config(page_title="Badanie SWPS / SWPS Study – NPC Interaction", layout="centered")
 
+# Ścieżki do awatarów (w głównym folderze projektu obok app.py)
+VARG_AVATAR_PATH = "varg_avatar.jpg"
+PLAYER_AVATAR_PATH = "player_avatar.jpg"
+HAS_VARG_AVATAR = os.path.isfile(VARG_AVATAR_PATH)
+HAS_PLAYER_AVATAR = os.path.isfile(PLAYER_AVATAR_PATH)
+CHAT_AVATAR_NPC = VARG_AVATAR_PATH if HAS_VARG_AVATAR else None
+CHAT_AVATAR_USER = PLAYER_AVATAR_PATH if HAS_PLAYER_AVATAR else None
+
 # ==========================================
-# STYL SUWAKÓW ZE STAŁYMI PODPISAMI STOPNI 1–7 POD SPODEM (+ RESPONSYWNOŚĆ MOBILNA)
+# STYL SUWAKÓW 1–7, KARTY VARGA ORAZ RESPONSYWNOŚĆ MOBILNA
 # ==========================================
 st.markdown(
     """
     <style>
-    /* Ukrycie domyślnego paska skrajnych wartości (1 i 7) pod suwakiem, by nie dublował podpisów */
     div[data-testid="stSliderTickBar"] {
         display: none !important;
     }
@@ -34,7 +41,6 @@ st.markdown(
         margin-bottom: 0px !important;
         padding-bottom: 0px !important;
     }
-    /* Stałe podpisy wszystkich 7 stopni pod suwakiem (bez podświetleń po najechaniu) */
     .paper-scale-labels {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
@@ -60,7 +66,6 @@ st.markdown(
         margin-top: 12px;
         margin-bottom: 6px;
     }
-    /* Responsywność dla urządzeń mobilnych (ekrany smartfonów do 640 px) */
     @media (max-width: 640px) {
         .paper-scale-labels {
             gap: 2px;
@@ -212,7 +217,7 @@ Zapraszam Cię do udziału w badaniu naukowym realizowanym w ramach pracy licenc
 Udział w badaniu jest całkowicie dobrowolny i anonimowy. Możesz zrezygnować z udziału w dowolnym momencie (poprzez zamknięcie okna przeglądarki) bez podawania przyczyny i bez żadnych konsekwencji. Zebrane dane będą analizowane wyłącznie zbiorczo w celach naukowych i dydaktycznych.
 
 #### Informacja o przetwarzaniu danych przez zewnętrzny model językowy (API LLM)
-W trakcie rozgrywki będziesz prowadzić otwartą rozmowę tekstową z wirtualną postacią. **Informujemy, że treści wpisywane przez Ciebie w oknie czatu są przesyłane w czasie rzeczywistym do zewnętrznego interfejsu programistycznego dużego modelu językowego (API OpenAI – model GPT-4o / API Groq – model Llama 3) oraz przetwarzane w lokalnej bazie wektorowej w celu wygenerowania odpowiedzi postaci.**  
+W trakcie rozgrywki będziesz prowadzić otwartą rozmowę tekstową z wirtualną postacią. **Informujemy, że treści wpisywane przez Ciebie w oknie czatu są przesyłane w czasie rzeczywistym do zewnętrznego interfejsu programistycznego dużego modelu językowego (API Groq – model Llama 3) oraz przetwarzane w lokalnej bazie wektorowej w celu wygenerowania odpowiedzi postaci.**  
 W związku z tym **prosimy o niewpisywanie w oknie dialogowym żadnych prawdziwych danych osobowych** (takich jak Twoje imię i nazwisko, adres, numer telefonu, e-mail czy dane wrażliwe) ani informacji pozwalających na Twoją identyfikację. Wcielasz się w fikcyjną postać w świecie gry.
 
 **Kontakt:** W razie pytań dotyczących badania możesz skontaktować się z autorem badania pod adresem: *tsudak@st.swps.edu.pl*
@@ -237,27 +242,35 @@ W związku z tym **prosimy o niewpisywanie w oknie dialogowym żadnych prawdziwy
         "err_age": "Kryterium włączenia do badania obejmuje osoby w wieku od 18 do 35 lat. Dziękujemy za zainteresowanie badaniem.",
         "err_rpg": "Badanie skierowane jest do osób posiadających minimalne doświadczenie z grami RPG lub dialogowymi. Dziękujemy za Twój czas!",
         "intro_title": "Wprowadzenie do świata gry",
+        "varg_card_title": "Varg — Dowódca Czarnych Wilków",
+        "varg_card_desc": "Zahartowany weteran wojen granicznych, który przejął kontrolę nad Przełęczą Kruków. Szorstki, pragmatyczny handlarz informacjami i przywódca najemników — szanuje odwagę i dotrzymane słowo, ale nie zapomina ani kłamstw, ani zniewag.",
         "intro_body": """
-### Twoja rola: Najemnik na Północnym Pograniczu
-Wcielasz się w rolę niezależnego najemnika i poszukiwacza, który próbuje przetrwać w ogarniętej konfliktem prowincji. 
-Na swojej drodze trzykrotnie (w odstępie kilku dni) spotkasz **Varga** – wpływowego dowódcę lokalnej kompanii najemniczej i handlarza informacjami, który kontroluje górskie szlaki.
+### Kim jesteś: Kaelen, ocalały zwiadowca Żelaznego Szlaku
+Wcielasz się w predefiniowaną postać fabularną — **Kaelena**, byłego zwiadowcę rozbitej *Kompanii Żelaznego Szlaku*. Po krwawej pacyfikacji przeprowadzonej przez bezwzględnego **Namiestnika**, Twój oddział przestał istnieć, a za Twoją głowę wyznaczono nagrodę. Utknąłeś w odciętej przez wczesną zimę **Dolinie Popiołów**, gdzie czerwone patrole Namiestnika przeczesują kolejne osady.
 
-**Zasady interakcji:**
-* Rozgrywka składa się z **3 krótkich epizodów fabularnych**.
-* W każdym epizodzie wymienisz z Vargiem kilka wiadomości w oknie czatu (wpisując pełne zdania po polsku).
-* Masz pełną swobodę wyboru strategii: możesz z nim współpracować, składać obietnice, negocjować, oszukiwać go, grozić mu lub go obrażać.
-* Po wymianie co najmniej **2–3 wypowiedzi** w danym epizodzie kliknij przycisk przejścia do kolejnego epizodu.
+### Twój cel i stawka
+Twoją jedyną szansą na przeżycie jest przedostanie się przez górską **Przełęcz Kruków** do wolnego miasta **Oakhaven**. Przejścia strzeże jednak ufortyfikowany obóz najemnej kompanii **Czarnych Wilków**, dowodzonej przez **Varga**. Masz przy sobie zaledwie resztki srebra — nie wystarczy na łapówkę, więc musisz negocjować, zdobyć jego zaufanie, wykiwać go lub zmusić do współpracy.
+
+### Co Cię czeka (3 powiązane epizody)
+1. **Epizod 1 (Brama Przełęczy Kruków):** Pierwsza rozmowa z Vargiem o glejt przez przełęcz i jego zlecenie odzyskania zaszyfrowanego dziennika zaginionego zwiadowcy Torina z ruin Starej Strażnicy.
+2. **Epizod 2 (Karczma „Pod Złamanym Kołem” – 3 dni później):** Rozliczenie się po wyprawie, podział zdobytych map kontrabandy i negocjacje w cieniu zbliżających się patroli Namiestnika.
+3. **Epizod 3 (Wąwóz Mgły – Tydzień później):** Finałowa konfrontacja przed blokadą wojsk Namiestnika — przekonanie Varga, by jego ludzie uderzyli ze skrzydła i otworzyli Ci drogę ucieczki.
+
+**Zasady rozgrywki:**
+* W każdym epizodzie wymień z Vargiem co najmniej **2–3 pełne wypowiedzi** po polsku, odgrywając swoją postać. Gdy sprawa w danym epizodzie zostanie rozstrzygnięta, Varg sam zamknie spotkanie, abyś mógł/a przejść do kolejnego etapu.
+* Masz pełną swobodę: możesz współpracować, targować się, składać obietnice, blefować, grozić lub go obrażać.
 * **Uwaga techniczna:** Nie odświeżaj strony w przeglądarce (F5) ani nie używaj przycisku „Wstecz” aż do zakończenia badania.
         """,
-        "intro_btn": "Rozpocznij Epizod 1 ⚔️",
+        "intro_btn": "Podejdź do Bramy Przełęczy Kruków (Epizod 1) ⚔️",
         "game_title": "Rozgrywka – Epizod {ep} z 3",
-        "game_ctx_label": "Kontekst sytuacji:",
-        "spinner_approach": "Varg podchodzi do Ciebie...",
-        "spinner_reply": "Varg odpowiada...",
-        "chat_placeholder": "Wpisz swoją odpowiedź dla Varga (pełnym zdaniem)...",
+        "varg_status_subtitle": "Dowódca Czarnych Wilków • Przełęcz Kruków",
+        "spinner_approach": "Varg spogląda w Twoją stronę...",
+        "spinner_reply": "Varg rozważa Twoje słowa...",
+        "chat_placeholder": "Wpisz swoją odpowiedź jako Kaelen (pełnym zdaniem)...",
         "warn_short": "⚠️ Proszę wpisać pełną wypowiedź (co najmniej 2 słowa i 5 znaków), aby postać mogła właściwie zareagować w dialogu.",
-        "turns_hint": "💡 Wymień z postacią jeszcze co najmniej {rem} pełną wypowiedź/wypowiedzi, aby odblokować przejście dalej.",
-        "next_ep_btn": "Zakończ Epizod {ep} i przejdź do Epizodu {next_ep} (Kilka dni później...) ⏭️",
+        "turns_hint": "💡 Wymień z Vargiem jeszcze co najmniej {rem} pełną wypowiedź/wypowiedzi, aby odblokować przejście do kolejnego etapu.",
+        "ep_ended_notice": "🎬 **Varg zakończył tę rozmowę.** Sprawa w tym epizodzie dobiegła końca — kliknij przycisk poniżej, aby przejść dalej.",
+        "next_ep_btn": "Zakończ Epizod {ep} i przejdź do Epizodu {next_ep} ⏭️",
         "end_game_btn": "Zakończ rozgrywkę i przejdź do ankiety końcowej ➡️",
         "post_title": "Ankieta podsumowująca rozgrywkę",
         "post_desc": "Proszę o ocenę swoich wrażeń z odbytej rozmowy z postacią (Vargiem). Pod każdym suwakiem znajduje się pełna skala od **1** do **7** wraz z podpisami poszczególnych stopni.",
@@ -349,7 +362,7 @@ You are invited to participate in a research study conducted as part of an under
 Participation in this study is completely voluntary and anonymous. You may withdraw at any time (by closing the browser window) without giving any reason and without any consequences. Collected data will be analyzed solely in aggregate form for scientific and educational purposes.
 
 #### Information on Data Processing by External Language Model (LLM API)
-During gameplay, you will engage in open text conversation with a virtual character. **Please be informed that the text you enter in the chat window is transmitted in real time to an external large language model API (OpenAI GPT-4o / Groq Llama 3 API) and processed in a local vector database to generate the character's responses.**  
+During gameplay, you will engage in open text conversation with a virtual character. **Please be informed that the text you enter in the chat window is transmitted in real time to an external large language model API (Groq Llama 3 API) and processed in a local vector database to generate the character's responses.**  
 Therefore, **please do not enter any real personal data in the chat window** (such as your real name, address, phone number, email, or sensitive information) or any information that could identify you. You are roleplaying a fictional character in a game world.
 
 **Contact:** If you have any questions regarding the study, please contact the researcher at: *tsudak@st.swps.edu.pl*
@@ -374,27 +387,35 @@ Therefore, **please do not enter any real personal data in the chat window** (su
         "err_age": "The inclusion criteria for this study cover participants aged 18 to 35. Thank you for your interest in the study.",
         "err_rpg": "This study is aimed at individuals with at least minimal experience with RPGs or dialogue-heavy games. Thank you for your time!",
         "intro_title": "Introduction to the Game World",
+        "varg_card_title": "Varg — Commander of the Black Wolves",
+        "varg_card_desc": "A battle-scarred border war veteran who controls Crow's Pass. A harsh, pragmatic mercenary commander and information broker—he respects courage and kept oaths, but never forgets a lie or an insult.",
         "intro_body": """
-### Your Role: Mercenary on the Northern Frontier
-You take on the role of an independent mercenary and adventurer trying to survive in a conflict-torn province. 
-Along your journey, you will meet **Varg** three times (several days apart) – an influential commander of a local mercenary company and an information broker who controls the mountain passes.
+### Who You Are: Kaelen, Surviving Scout of the Iron Trail
+You step into the role of **Kaelen**—a former scout of the shattered *Iron Trail Company*. After a brutal crackdown by the ruthless **Governor**, your unit was wiped out and a bounty was placed on your head. You are trapped in snowbound **Ashen Valley**, where the Governor's red-cloak patrols are combing the villages.
+
+### Your Goal and the Stakes
+Your only chance of survival is to cross **Crow's Pass** to the free city of **Oakhaven**. However, the mountain pass is sealed by the fortified camp of the **Black Wolves** mercenary company, led by **Varg**. You have almost no silver left for a bribe—you will have to negotiate, earn his trust, outsmart him, or push your luck.
+
+### What Awaits You (3 Connected Episodes)
+1. **Episode 1 (Crow's Pass Gate):** Your first meeting with Varg to secure a safe-conduct pass and negotiate his job: recovering his missing scout Torin's encrypted journal from the Old Watchtower ruins.
+2. **Episode 2 (The Broken Wheel Tavern – 3 days later):** Settling accounts after the watchtower run, dividing smuggling maps and spoils, and negotiating shelter while the Governor's patrols close in.
+3. **Episode 3 (Fog Gorge – A week later):** The final confrontation before the Governor's blockade—convincing Varg to commit his Black Wolves to a flanking strike to open your escape route.
 
 **Interaction Rules:**
-* The gameplay consists of **3 short narrative episodes**.
-* In each episode, you will exchange several messages with Varg in the chat window (typing full sentences in English).
-* You have complete freedom in choosing your strategy: you can cooperate with him, make promises, negotiate, deceive him, threaten him, or insult him.
-* After exchanging at least **2–3 messages** in a given episode, click the button to proceed to the next episode.
+* In each episode, exchange at least **2–3 full messages** with Varg in English, staying in character. Once the matter at hand is settled, Varg will conclude the meeting so you can move on to the next episode.
+* You have complete freedom: cooperate, haggle, make promises, bluff, threaten, or insult him.
 * **Technical note:** Do not refresh the browser page (F5) or use the 'Back' button until you finish the study.
         """,
-        "intro_btn": "Start Episode 1 ⚔️",
+        "intro_btn": "Approach Crow's Pass Gate (Episode 1) ⚔️",
         "game_title": "Gameplay – Episode {ep} of 3",
-        "game_ctx_label": "Situation Context:",
-        "spinner_approach": "Varg approaches you...",
-        "spinner_reply": "Varg is responding...",
-        "chat_placeholder": "Type your response to Varg (in a full sentence)...",
+        "varg_status_subtitle": "Commander of the Black Wolves • Crow's Pass",
+        "spinner_approach": "Varg turns his gaze toward you...",
+        "spinner_reply": "Varg weighs your words...",
+        "chat_placeholder": "Type your response as Kaelen (in a full sentence)...",
         "warn_short": "⚠️ Please type a full response (at least 2 words and 5 characters) so the character can respond properly.",
-        "turns_hint": "💡 Exchange at least {rem} more full message(s) with the character to unlock the next stage.",
-        "next_ep_btn": "Finish Episode {ep} and proceed to Episode {next_ep} (A few days later...) ⏭️",
+        "turns_hint": "💡 Exchange at least {rem} more full message(s) with Varg to unlock the next stage.",
+        "ep_ended_notice": "🎬 **Varg has ended this conversation.** This encounter is over — click the button below to continue.",
+        "next_ep_btn": "Finish Episode {ep} and proceed to Episode {next_ep} ⏭️",
         "end_game_btn": "Finish gameplay and proceed to the final questionnaire ➡️",
         "post_title": "Post-Gameplay Questionnaire",
         "post_desc": "Please rate your impressions from your conversation with the character (Varg). Below each slider is a full **1** to **7** scale with permanent labels for every degree.",
@@ -477,10 +498,7 @@ def load_csv_data(filepath: str) -> list[dict]:
 
 
 def get_balanced_mode() -> Literal["A", "B"]:
-    """
-    Zbalansowana randomizacja 1:1: sprawdza liczbę ukończonych sesji w grupie A i B.
-    Przydziela nowego uczestnika do mniej licznej grupy, a przy remisie losuje 50/50.
-    """
+    """Zbalansowana randomizacja 1:1 na bazie lokalnej liczby ukończonych sesji."""
     rows = load_csv_data(RESULTS_FILE)
     count_a = sum(1 for r in rows if r.get("ZN_Tryb_Silnika") == "A")
     count_b = sum(1 for r in rows if r.get("ZN_Tryb_Silnika") == "B")
@@ -558,6 +576,8 @@ if "mode" not in st.session_state:
     st.session_state.mode = get_balanced_mode()
 if "episode" not in st.session_state:
     st.session_state.episode = 1
+if "episode_ended" not in st.session_state:
+    st.session_state.episode_ended = False
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "all_chat_logs" not in st.session_state:
@@ -566,6 +586,8 @@ if "perception_logs" not in st.session_state:
     st.session_state.perception_logs = []
 if "last_rag_memories" not in st.session_state:
     st.session_state.last_rag_memories = []
+if "last_react_trace" not in st.session_state:
+    st.session_state.last_react_trace = {}
 if "vector_memory" not in st.session_state:
     st.session_state.vector_memory = NemesisVectorMemory(st.session_state.session_id)
 if "relationship" not in st.session_state:
@@ -643,7 +665,8 @@ def save_study_results(posttest_data: dict):
     log_fieldnames = [
         "Nr_Badanego", "session_id", "timestamp", "lang", "mode", "episode", "turn_number",
         "player_text", "npc_reply", "category", "affect_score",
-        "summary", "rag_retrieved", "wrogosc_state", "wdziecznosc_state"
+        "summary", "rag_retrieved", "wrogosc_state", "wdziecznosc_state",
+        "response_time_sec", "react_method", "episode_ended_by_npc"
     ]
     logs_with_num = []
     with open(LOGS_FILE, mode="a", newline="", encoding="utf-8-sig") as f:
@@ -678,11 +701,11 @@ if IS_ADMIN_URL:
     if not st.session_state.admin_authenticated:
         pwd_input = st.text_input("Wprowadź hasło administratora:", type="password")
         if st.button("Zaloguj do panelu", type="primary"):
-            if pwd_input == ADMIN_PASSWORD:
+            if ADMIN_PASSWORD and pwd_input == ADMIN_PASSWORD:
                 st.session_state.admin_authenticated = True
                 st.rerun()
             else:
-                st.error("Nieprawidłowe hasło administratora.")
+                st.error("Nieprawidłowe hasło administratora lub brak skonfigurowanego ADMIN_PASSWORD w .env / Secrets.")
         st.stop()
 
     col_top1, col_top2 = st.columns([3, 1])
@@ -806,6 +829,9 @@ if IS_ADMIN_URL:
                         "Kategoria (Percepcja)": l.get("category"),
                         "Afekt": l.get("affect_score"),
                         "Pobrane z RAG": l.get("rag_retrieved"),
+                        "Czas (s)": l.get("response_time_sec", "-"),
+                        "ReAct": l.get("react_method", "-"),
+                        "Koniec (NPC)": l.get("episode_ended_by_npc", "-"),
                     })
                 st.dataframe(clean_person_logs, use_container_width=True, hide_index=True)
             else:
@@ -858,7 +884,7 @@ if IS_ADMIN_URL:
     st.divider()
     st.subheader("🛠️ Narzędzia testowe dla badacza")
     st.session_state.show_debug = st.checkbox(
-        "Włącz boczny pasek Debugowania podczas przechodzenia badania w tej przeglądarce",
+        "Włącz boczny pasek Debugowania (w tym podgląd pętli ReAct Best-of-5) w tej przeglądarce",
         value=st.session_state.show_debug
     )
     if st.button("Przejdź do widoku badania (jako uczestnik) ➡️"):
@@ -903,25 +929,37 @@ if st.session_state.show_debug:
         else:
             st.caption("Brak wspomnień.")
 
+        st.divider()
+        with st.expander("🧠 Podgląd pętli ReAct (Best-of-5)", expanded=False):
+            trace = st.session_state.last_react_trace
+            if trace and trace.get("candidates"):
+                st.caption(f"**Tryb:** {trace.get('method')} | **Zamknięcie epizodu:** `{trace.get('end_episode')}`")
+                st.markdown(f"**Reason (Analiza):** {trace.get('reasoning')}")
+                st.markdown("**5 kandydatów:**")
+                for c in trace.get("candidates", []):
+                    st.caption(c)
+                st.markdown(f"**Act (Krytyka i wybór):** {trace.get('rationale')}")
+            else:
+                st.caption("Wyślij wypowiedź na czacie, aby zobaczyć analizę ReAct + 5 kandydatów.")
+
 
 # ==========================================
-# WYBÓR JĘZYKA (TYLKO PL / EN) ORAZ PASEK POSTĘPU
+# WYBÓR JĘZYKA (TYLKO W KROKU 1) ORAZ PASEK POSTĘPU
 # ==========================================
-lang_col1, lang_col2 = st.columns([2, 1])
-with lang_col2:
-    lang_options = {"🇵🇱 Polski": "pl", "🇬🇧 English": "en"}
-    current_idx = ["pl", "en"].index(st.session_state.lang)
-    chosen_label = st.selectbox(
-        "🌐 Język / Language:",
-        options=list(lang_options.keys()),
-        index=current_idx
-    )
-    new_lang = lang_options[chosen_label]
-    if new_lang != st.session_state.lang:
-        st.session_state.lang = new_lang
-        if st.session_state.step == 4 and sum(1 for m in st.session_state.chat_history if m["role"] == "user") == 0:
-            st.session_state.chat_history = []
-        st.rerun()
+if st.session_state.step == 1:
+    lang_col1, lang_col2 = st.columns([2, 1])
+    with lang_col2:
+        lang_options = {"🇵🇱 Polski": "pl", "🇬🇧 English": "en"}
+        current_idx = ["pl", "en"].index(st.session_state.lang)
+        chosen_label = st.selectbox(
+            "🌐 Język / Language:",
+            options=list(lang_options.keys()),
+            index=current_idx
+        )
+        new_lang = lang_options[chosen_label]
+        if new_lang != st.session_state.lang:
+            st.session_state.lang = new_lang
+            st.rerun()
 
 L = TRANSLATIONS[st.session_state.lang]
 
@@ -1004,10 +1042,20 @@ elif st.session_state.step == 2:
 
 
 # ==========================================
-# KROK 3: WPROWADZENIE FABULARNE
+# KROK 3: WPROWADZENIE FABULARNE + KARTA POSTACI VARGA
 # ==========================================
 elif st.session_state.step == 3:
     st.title(L["intro_title"])
+
+    if HAS_VARG_AVATAR:
+        c_img, c_bio = st.columns([1, 2.3], vertical_alignment="center")
+        with c_img:
+            st.image(VARG_AVATAR_PATH, use_container_width=True)
+        with c_bio:
+            st.subheader(L["varg_card_title"])
+            st.write(L["varg_card_desc"])
+        st.divider()
+
     st.markdown(L["intro_body"])
     st.warning(L["no_refresh_banner"])
 
@@ -1017,21 +1065,31 @@ elif st.session_state.step == 3:
 
 
 # ==========================================
-# KROK 4: ROZGRYWKA WIELOEPIZODYCZNA (3 EPIZODY)
+# KROK 4: ROZGRYWKA WIELOEPIZODYCZNA (3 EPIZODY + AWATARY + AUTO-KONIEC)
 # ==========================================
 elif st.session_state.step == 4:
     cur_ep = st.session_state.episode
     cur_lang = st.session_state.lang
 
     st.title(L["game_title"].format(ep=cur_ep))
-    st.info(f"**{L['game_ctx_label']}** {EPISODE_CONTEXTS[cur_lang][cur_ep]}")
+
+    if HAS_VARG_AVATAR:
+        col_av, col_brief = st.columns([1, 3.2], vertical_alignment="center")
+        with col_av:
+            st.image(VARG_AVATAR_PATH, use_container_width=True)
+        with col_brief:
+            st.markdown(f"**{L['varg_card_title']}**")
+            st.caption(L["varg_status_subtitle"])
+            st.info(PLAYER_EPISODE_BRIEFS[cur_lang][cur_ep])
+    else:
+        st.info(PLAYER_EPISODE_BRIEFS[cur_lang][cur_ep])
 
     if not st.session_state.chat_history:
         with st.spinner(L["spinner_approach"]):
             opening_memories = []
             if st.session_state.mode == "B" and cur_ep > 1:
                 opening_memories = st.session_state.vector_memory.retrieve_relevant_memories(
-                    query_text="dotychczasowa historia relacji obietnice zniewagi spotkanie history relationship",
+                    query_text="dotychczasowa historia relacji obietnice zniewagi spotkanie Torin dziennik history relationship",
                     n_results=4
                 )
                 st.session_state.last_rag_memories = opening_memories
@@ -1046,89 +1104,113 @@ elif st.session_state.step == 4:
             st.session_state.chat_history.append({"role": "assistant", "content": opening_text})
 
     for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"]):
+        msg_avatar = CHAT_AVATAR_NPC if msg["role"] == "assistant" else CHAT_AVATAR_USER
+        with st.chat_message(msg["role"], avatar=msg_avatar):
             st.markdown(msg["content"])
 
     user_turns = sum(1 for m in st.session_state.chat_history if m["role"] == "user")
 
-    if player_input := st.chat_input(L["chat_placeholder"]):
-        clean_input = player_input.strip()
-        if len(clean_input.split()) < 2 or len(clean_input) < 5:
-            st.warning(L["warn_short"])
-        else:
-            with st.chat_message("user"):
-                st.markdown(clean_input)
+    # Pole wpisywania wiadomości jest aktywne tylko, jeśli Varg nie zakończył jeszcze epizodu
+    if not st.session_state.episode_ended:
+        if player_input := st.chat_input(L["chat_placeholder"]):
+            clean_input = player_input.strip()
+            if len(clean_input.split()) < 2 or len(clean_input) < 5:
+                st.warning(L["warn_short"])
+            else:
+                with st.chat_message("user", avatar=CHAT_AVATAR_USER):
+                    st.markdown(clean_input)
 
-            with st.spinner(L["spinner_reply"]):
-                perception = analyze_player_input(clean_input, lang=cur_lang)
-                st.session_state.perception_logs.append({
-                    "ep": cur_ep,
-                    "cat": perception.category,
-                    "score": perception.affect_score,
-                    "summary": perception.summary
-                })
+                with st.spinner(L["spinner_reply"]):
+                    t_start = time.time()
+                    current_turn = user_turns + 1
 
-                retrieved_memories = []
-                if st.session_state.mode == "B":
-                    retrieved_memories = st.session_state.vector_memory.retrieve_relevant_memories(
-                        query_text=clean_input,
-                        n_results=4
-                    )
-                    st.session_state.last_rag_memories = retrieved_memories
+                    perception = analyze_player_input(clean_input, lang=cur_lang)
+                    st.session_state.perception_logs.append({
+                        "ep": cur_ep,
+                        "cat": perception.category,
+                        "score": perception.affect_score,
+                        "summary": perception.summary
+                    })
 
-                st.session_state.relationship.update(perception)
+                    retrieved_memories = []
+                    if st.session_state.mode == "B":
+                        retrieved_memories = st.session_state.vector_memory.retrieve_relevant_memories(
+                            query_text=clean_input,
+                            n_results=4
+                        )
+                        st.session_state.last_rag_memories = retrieved_memories
 
-                npc_reply = generate_npc_response(
-                    mode=st.session_state.mode,
-                    episode=cur_ep,
-                    chat_history=st.session_state.chat_history,
-                    player_text=clean_input,
-                    retrieved_memories=retrieved_memories,
-                    relationship_state=st.session_state.relationship.to_Prompt_string(cur_lang),
-                    lang=cur_lang
-                )
+                    st.session_state.relationship.update(perception)
 
-                if st.session_state.mode == "B":
-                    st.session_state.vector_memory.add_memory(
+                    npc_reply, react_trace = generate_npc_response(
+                        mode=st.session_state.mode,
                         episode=cur_ep,
+                        chat_history=st.session_state.chat_history,
                         player_text=clean_input,
-                        perception=perception,
-                        lang=cur_lang
+                        retrieved_memories=retrieved_memories,
+                        relationship_state=st.session_state.relationship.to_Prompt_string(cur_lang),
+                        lang=cur_lang,
+                        turn_number=current_turn,
+                        return_trace=True
                     )
+                    resp_sec = round(time.time() - t_start, 2)
+                    st.session_state.last_react_trace = react_trace
 
-                rel = st.session_state.relationship
-                st.session_state.all_chat_logs.append({
-                    "session_id": st.session_state.session_id,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "lang": cur_lang,
-                    "mode": st.session_state.mode,
-                    "episode": cur_ep,
-                    "turn_number": user_turns + 1,
-                    "player_text": clean_input.replace(";", ",").replace("\n", " "),
-                    "npc_reply": npc_reply.replace(";", ",").replace("\n", " "),
-                    "category": perception.category,
-                    "affect_score": perception.affect_score,
-                    "summary": perception.summary.replace(";", ","),
-                    "rag_retrieved": " | ".join(retrieved_memories).replace(";", ",") if retrieved_memories else "Brak",
-                    "wrogosc_state": rel.wrogosc,
-                    "wdziecznosc_state": rel.wdziecznosc,
-                })
+                    ended_by_npc = bool(react_trace.get("end_episode", False))
+                    if ended_by_npc:
+                        st.session_state.episode_ended = True
 
-            st.session_state.chat_history.append({"role": "user", "content": clean_input})
-            st.session_state.chat_history.append({"role": "assistant", "content": npc_reply})
-            st.rerun()
+                    if st.session_state.mode == "B":
+                        st.session_state.vector_memory.add_memory(
+                            episode=cur_ep,
+                            player_text=clean_input,
+                            perception=perception,
+                            lang=cur_lang
+                        )
+
+                    rel = st.session_state.relationship
+                    st.session_state.all_chat_logs.append({
+                        "session_id": st.session_state.session_id,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "lang": cur_lang,
+                        "mode": st.session_state.mode,
+                        "episode": cur_ep,
+                        "turn_number": current_turn,
+                        "player_text": clean_input.replace(";", ",").replace("\n", " "),
+                        "npc_reply": npc_reply.replace(";", ",").replace("\n", " "),
+                        "category": perception.category,
+                        "affect_score": perception.affect_score,
+                        "summary": perception.summary.replace(";", ","),
+                        "rag_retrieved": " | ".join(retrieved_memories).replace(";", ",") if retrieved_memories else "Brak",
+                        "wrogosc_state": rel.wrogosc,
+                        "wdziecznosc_state": rel.wdziecznosc,
+                        "response_time_sec": resp_sec,
+                        "react_method": react_trace.get("method", "unknown"),
+                        "episode_ended_by_npc": ended_by_npc,
+                    })
+
+                st.session_state.chat_history.append({"role": "user", "content": clean_input})
+                st.session_state.chat_history.append({"role": "assistant", "content": npc_reply})
+                st.rerun()
 
     st.divider()
-    if user_turns < 2:
+
+    if st.session_state.episode_ended:
+        st.success(L["ep_ended_notice"])
+
+    if not st.session_state.episode_ended and user_turns < 2:
         st.caption(L["turns_hint"].format(rem=2 - user_turns))
     else:
         if cur_ep < 3:
             if st.button(L["next_ep_btn"].format(ep=cur_ep, next_ep=cur_ep + 1), type="primary"):
                 st.session_state.episode += 1
+                st.session_state.episode_ended = False
                 st.session_state.chat_history = []
+                st.session_state.last_react_trace = {}
                 st.rerun()
         else:
             if st.button(L["end_game_btn"], type="primary"):
+                st.session_state.episode_ended = False
                 st.session_state.step = 5
                 st.rerun()
 
@@ -1175,7 +1257,7 @@ elif st.session_state.step == 5:
         tom_2 = render_paper_likert(L["tom_2"], key="tom_2", lang=cur_lang, default_val=4)
         coh_1 = render_paper_likert(L["coh_1"], key="coh_1", lang=cur_lang, default_val=4)
         coh_2 = render_paper_likert(L["coh_2"], key="coh_2", lang=cur_lang, default_val=4)
-        hal_1 = render_paper_likert(L["hal_1"], key="hal_1", lang=cur_lang, default_val=2)
+        hal_1 = render_paper_likert(L["hal_1"], key="hal_1", lang=cur_lang, default_val=4)
 
         hal_options = L["hal_2_opts"]
         st.markdown(f'<div class="paper-question-title">{L["hal_2_q"]}</div>', unsafe_allow_html=True)
